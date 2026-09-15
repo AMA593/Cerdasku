@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() { return request.resource.data; }
+    function isTeacher() { 
+      return request.auth != null && request.auth.token.email in ['ahmadmaiyah35@gmail.com']; 
+    }
+
+    match /submissions/{subId} {
+      function isValidSubmission(data) {
+        return data.keys().hasAll(['studentName', 'subject', 'score', 'totalQuestions', 'answers', 'createdAt']) &&
+               data.studentName is string && data.studentName.size() <= 100 &&
+               data.subject is string && data.subject.size() <= 100 &&
+               data.score is number &&
+               data.totalQuestions is number &&
+               data.answers is map &&
+               data.createdAt is number;
+      }
+      
+      // Siswa (tanpa login) bisa mengirimkan jawaban
+      allow create: if isValidSubmission(incoming());
+      
+      // Guru (harus login Google) bisa melihat dan menghapus hasil
+      allow read, delete: if isTeacher();
+    }
+
+    match /questions/{questionId} {
+      function isValidQuestion(data) {
+        return data.keys().hasAll(['text', 'options', 'correctAnswer', 'createdAt']) &&
+               data.text is string &&
+               data.options is list &&
+               data.correctAnswer is string &&
+               data.createdAt is number;
+      }
+      
+      // Siswa bisa membaca soal (tanpa login)
+      allow read: if true;
+      
+      // Guru bisa membuat, mengubah, dan menghapus soal
+      allow create, update: if isTeacher() && isValidQuestion(incoming());
+      allow delete: if isTeacher();
+    }
+  }
+}

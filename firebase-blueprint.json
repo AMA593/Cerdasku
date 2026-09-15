@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Submission": {
+      "title": "Submission",
+      "description": "Student quiz submission",
+      "type": "object",
+      "properties": {
+        "studentName": { "type": "string", "maxLength": 100 },
+        "subject": { "type": "string", "maxLength": 100 },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "answers": { "type": "object" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["studentName", "subject", "score", "totalQuestions", "answers", "createdAt"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "Quiz question managed by teacher",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "maxLength": 1000 },
+        "options": { "type": "array" },
+        "correctAnswer": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["text", "options", "correctAnswer", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/submissions/{subId}": {
+      "schema": { "$ref": "#/entities/Submission" },
+      "description": "Quiz submissions from students"
+    },
+    "/questions/{questionId}": {
+      "schema": { "$ref": "#/entities/Question" },
+      "description": "Bank of questions"
+    }
+  }
+}
