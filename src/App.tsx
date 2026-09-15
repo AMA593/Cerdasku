@@ -86,6 +86,14 @@ export default function App() {
     }));
   };
 
+  const handleForceExit = () => {
+    setStudentName('');
+    setAnswers({});
+    setCurrentIndex(0);
+    setScore(0);
+    setView('student_setup');
+  };
+
   const handleSubmitQuiz = async () => {
     let calculatedScore = 0;
     quizQuestions.forEach(q => {
@@ -330,8 +338,16 @@ export default function App() {
               <h2 className="text-xl font-bold text-slate-900">Ujian: {subject}</h2>
               <p className="text-sm text-slate-500">Peserta: {studentName}</p>
             </div>
-            <div className="px-4 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-              Soal {currentIndex + 1} / {quizQuestions.length}
+            <div className="flex items-center gap-4">
+              <div className="px-4 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                Soal {currentIndex + 1} / {quizQuestions.length}
+              </div>
+              <button
+                onClick={handleForceExit}
+                className="px-4 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-full text-sm font-medium transition-colors"
+              >
+                Keluar
+              </button>
             </div>
           </header>
 
