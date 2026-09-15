@@ -1,34 +1,55 @@
 import { Question } from '../types';
 
 export const questionBank: Question[] = [
-  { id: 'q1', text: 'Berapakah hasil dari 15 + 3 x 4?', options: ['27', '72', '60', '35'], correctAnswer: '27' },
-  { id: 'q2', text: 'Jika sebuah persegi memiliki sisi 8 cm, berapakah luasnya?', options: ['32 cm²', '64 cm²', '16 cm²', '48 cm²'], correctAnswer: '64 cm²' },
-  { id: 'q3', text: 'Planet manakah yang dijuluki Planet Merah?', options: ['Venus', 'Mars', 'Jupiter', 'Saturnus'], correctAnswer: 'Mars' },
-  { id: 'q4', text: 'Proses tumbuhan membuat makanan dengan bantuan cahaya matahari disebut?', options: ['Respirasi', 'Transpirasi', 'Fotosintesis', 'Adaptasi'], correctAnswer: 'Fotosintesis' },
-  { id: 'q5', text: 'Antonim dari kata "Prolog" adalah...', options: ['Epilog', 'Dialog', 'Monolog', 'Katalog'], correctAnswer: 'Epilog' },
-  { id: 'q6', text: 'Siapakah presiden pertama Republik Indonesia?', options: ['Soekarno', 'Soeharto', 'B.J. Habibie', 'Joko Widodo'], correctAnswer: 'Soekarno' },
-  { id: 'q7', text: 'Ibukota negara Jepang adalah...', options: ['Seoul', 'Beijing', 'Tokyo', 'Bangkok'], correctAnswer: 'Tokyo' },
-  { id: 'q8', text: 'Hasil dari 100 dibagi 4 adalah...', options: ['20', '25', '30', '40'], correctAnswer: '25' },
-  { id: 'q9', text: 'Hewan pemakan daging disebut...', options: ['Herbivora', 'Karnivora', 'Omnivora', 'Insektivora'], correctAnswer: 'Karnivora' },
-  { id: 'q10', text: 'Berapa jumlah provinsi di Pulau Jawa?', options: ['4', '5', '6', '7'], correctAnswer: '6' },
-  { id: 'q11', text: 'Mata uang negara Thailand adalah...', options: ['Ringgit', 'Baht', 'Peso', 'Rupee'], correctAnswer: 'Baht' },
-  { id: 'q12', text: 'Benda langit yang mengelilingi matahari disebut...', options: ['Bintang', 'Satelit', 'Planet', 'Meteor'], correctAnswer: 'Planet' },
-  { id: 'q13', text: 'Alat pernapasan pada ikan adalah...', options: ['Paru-paru', 'Insang', 'Trakea', 'Kulit'], correctAnswer: 'Insang' },
-  { id: 'q14', text: 'Angka romawi dari 50 adalah...', options: ['X', 'L', 'C', 'M'], correctAnswer: 'L' },
-  { id: 'q15', text: 'Sebuah segitiga memiliki alas 10 cm dan tinggi 6 cm. Luasnya adalah...', options: ['30 cm²', '60 cm²', '16 cm²', '32 cm²'], correctAnswer: '30 cm²' },
-  { id: 'q16', text: 'Rumus kimia dari air adalah...', options: ['CO2', 'O2', 'H2O', 'NaCl'], correctAnswer: 'H2O' },
-  { id: 'q17', text: 'Benua terbesar di dunia adalah...', options: ['Afrika', 'Eropa', 'Amerika', 'Asia'], correctAnswer: 'Asia' },
-  { id: 'q18', text: 'Siapa pencipta lagu Indonesia Raya?', options: ['W.R. Supratman', 'Ismail Marzuki', 'Ibu Sud', 'C. Simanjuntak'], correctAnswer: 'W.R. Supratman' },
-  { id: 'q19', text: 'Berapakah 5 pangkat 3?', options: ['15', '25', '125', '625'], correctAnswer: '125' },
-  { id: 'q20', text: 'Gas yang paling banyak terdapat di atmosfer bumi adalah...', options: ['Oksigen', 'Karbon Dioksida', 'Nitrogen', 'Hidrogen'], correctAnswer: 'Nitrogen' },
-  { id: 'q21', text: 'Pusat tata surya kita adalah...', options: ['Bumi', 'Bulan', 'Matahari', 'Jupiter'], correctAnswer: 'Matahari' },
-  { id: 'q22', text: 'Organ tubuh yang berfungsi memompa darah adalah...', options: ['Paru-paru', 'Ginjal', 'Hati', 'Jantung'], correctAnswer: 'Jantung' },
-  { id: 'q23', text: 'Provinsi paling timur di Indonesia adalah...', options: ['Maluku', 'Nusa Tenggara Timur', 'Papua', 'Sulawesi Utara'], correctAnswer: 'Papua' },
-  { id: 'q24', text: 'Tari Kecak berasal dari daerah...', options: ['Jawa Barat', 'Bali', 'Sumatera Barat', 'Aceh'], correctAnswer: 'Bali' },
-  { id: 'q25', text: 'Satuan ukuran arus listrik adalah...', options: ['Volt', 'Watt', 'Ampere', 'Ohm'], correctAnswer: 'Ampere' },
-  { id: 'q26', text: 'Alat ukur suhu disebut...', options: ['Barometer', 'Termometer', 'Anemometer', 'Higrometer'], correctAnswer: 'Termometer' },
-  { id: 'q27', text: 'Berapakah jumlah sudut pada segitiga?', options: ['90 derajat', '180 derajat', '360 derajat', '270 derajat'], correctAnswer: '180 derajat' },
-  { id: 'q28', text: 'Candi Borobudur merupakan peninggalan agama...', options: ['Hindu', 'Buddha', 'Islam', 'Konghucu'], correctAnswer: 'Buddha' },
-  { id: 'q29', text: 'Zat hijau daun disebut...', options: ['Klorofil', 'Kromoplas', 'Vakuola', 'Sitoplasma'], correctAnswer: 'Klorofil' },
-  { id: 'q30', text: 'Bentuk pemerintahan negara Inggris adalah...', options: ['Republik', 'Monarki', 'Oligarki', 'Federasi'], correctAnswer: 'Monarki' },
+
+  { id: 'q1', text: 'Manakah komponen berikut yang tidak selalu wajib terdapat pada komputer, terutama jika prosesor telah memiliki grafis terintegrasi?', options: ['Motherboard', 'RAM', 'VGA Card', 'Processor'], correctAnswer: 'VGA Card' },
+
+  { id: 'q2', text: 'RAM pada komputer berfungsi sebagai ....', options: ['Media penyimpanan data permanen', 'Media penyimpanan data sementara saat komputer bekerja', 'Pengolah seluruh instruksi dari perangkat lunak', 'Penghubung antara komputer dan jaringan internet'], correctAnswer: 'Media penyimpanan data sementara saat komputer bekerja' },
+
+  { id: 'q3', text: 'Kabel yang terdapat pada bagian casing dan digunakan untuk menghubungkan tombol Power, Reset, serta konektor USB pada casing ke motherboard secara umum disebut ....', options: ['SATA Cable', 'Power Cable', 'Front Panel Cable', 'Display Cable'], correctAnswer: 'Front Panel Cable' },
+
+  { id: 'q4', text: 'Komponen berbentuk baterai kecil pada motherboard yang berfungsi mempertahankan pengaturan waktu dan konfigurasi BIOS/UEFI ketika komputer dimatikan adalah ....', options: ['Baterai CMOS', 'Baterai CPU', 'Baterai BIOS', 'Baterai RAM'], correctAnswer: 'Baterai CMOS' },
+
+  { id: 'q5', text: 'Salah satu sistem operasi yang umum digunakan pada komputer pribadi adalah ....', options: ['Microsoft Word', 'Windows', 'HDMI', 'BIOS'], correctAnswer: 'Windows' },
+
+  { id: 'q6', text: 'Kombinasi tombol Ctrl + C pada umumnya digunakan untuk ....', options: ['Memotong data yang dipilih', 'Menyalin data yang dipilih', 'Menempelkan data yang telah disalin', 'Membatalkan perintah sebelumnya'], correctAnswer: 'Menyalin data yang dipilih' },
+
+  { id: 'q7', text: 'Kombinasi tombol Ctrl + P pada aplikasi komputer pada umumnya digunakan untuk ....', options: ['Membuka dokumen baru', 'Menyimpan dokumen', 'Mencetak dokumen', 'Menutup aplikasi'], correctAnswer: 'Mencetak dokumen' },
+
+  { id: 'q8', text: 'Aplikasi yang umum digunakan untuk membuat dan mengedit dokumen teks, seperti surat dan laporan, adalah ....', options: ['Microsoft Excel', 'Microsoft Word', 'Microsoft PowerPoint', 'Microsoft Access'], correctAnswer: 'Microsoft Word' },
+
+  { id: 'q9', text: 'Manusia yang menggunakan, mengelola, atau mengembangkan sistem komputer disebut ....', options: ['Hardware', 'Software', 'Brainware', 'Firmware'], correctAnswer: 'Brainware' },
+
+  { id: 'q10', text: 'Manakah yang termasuk perangkat input?', options: ['Monitor', 'Speaker', 'Keyboard', 'Proyektor'], correctAnswer: 'Keyboard' },
+
+  { id: 'q11', text: 'Perangkat yang digunakan sebagai media penyimpanan data secara permanen pada komputer adalah ....', options: ['RAM', 'Processor', 'SSD', 'Cooling Fan'], correctAnswer: 'SSD' },
+
+  { id: 'q12', text: 'Kabel yang digunakan untuk mentransmisikan sinyal audio dan video digital berkualitas tinggi adalah ....', options: ['HDMI', 'SATA', 'LAN', 'Power Cable'], correctAnswer: 'HDMI' },
+
+  { id: 'q13', text: 'Kabel yang digunakan untuk menghubungkan perangkat penyimpanan seperti SSD SATA atau HDD SATA dengan motherboard untuk transfer data adalah ....', options: ['HDMI', 'SATA', 'VGA', 'USB Type-A'], correctAnswer: 'SATA' },
+
+  { id: 'q14', text: 'Monitor termasuk ke dalam perangkat keras kategori ....', options: ['Input device', 'Processing device', 'Output device', 'Storage device'], correctAnswer: 'Output device' },
+
+  { id: 'q15', text: 'Aplikasi antivirus termasuk dalam kategori ....', options: ['Perangkat keras', 'Perangkat lunak', 'Perangkat input', 'Perangkat jaringan'], correctAnswer: 'Perangkat lunak' },
+
+  { id: 'q16', text: 'Processor atau CPU sering dianalogikan sebagai ....', options: ['Memori sementara komputer', 'Otak komputer', 'Media penyimpanan komputer', 'Pusat tampilan grafis komputer'], correctAnswer: 'Otak komputer' },
+
+  { id: 'q17', text: 'Komponen yang berfungsi membantu membuang panas dari processor agar suhu processor tetap berada pada batas kerja yang sesuai adalah ....', options: ['VGA Card', 'Power Supply', 'CPU Fan/Cooling Fan', 'RAM'], correctAnswer: 'CPU Fan/Cooling Fan' },
+
+  { id: 'q18', text: 'Kabel yang umum digunakan untuk menghubungkan komputer ke jaringan melalui koneksi Ethernet adalah ....', options: ['Kabel HDMI', 'Kabel SATA', 'Kabel LAN/UTP', 'Kabel Power'], correctAnswer: 'Kabel LAN/UTP' },
+
+  { id: 'q19', text: 'Di antara pilihan berikut, manakah yang merupakan form factor motherboard berukuran kecil?', options: ['Mini-ITX', 'Micro-ATX', 'ATX', 'Extended ATX'], correctAnswer: 'Mini-ITX' },
+
+  { id: 'q20', text: 'Pada sistem operasi Windows, tempat penyimpanan sementara file yang telah dihapus sebelum dihapus secara permanen disebut ....', options: ['File Explorer', 'Control Panel', 'Recycle Bin', 'Task Manager'], correctAnswer: 'Recycle Bin' },
+
+  { id: 'q21', text: 'Perintah pada sistem operasi yang digunakan untuk mematikan komputer secara normal adalah ....', options: ['Restart', 'Sleep', 'Shut Down', 'Sign Out'], correctAnswer: 'Shut Down' },
+
+  { id: 'q22', text: 'Kabel yang berfungsi menyalurkan daya listrik dari sumber listrik ke perangkat komputer atau komponen tertentu disebut ....', options: ['Power Cable', 'SATA Cable', 'LAN Cable', 'HDMI Cable'], correctAnswer: 'Power Cable' },
+
+  { id: 'q23', text: 'Bahan yang diaplikasikan pada permukaan processor untuk membantu meningkatkan perpindahan panas dari processor menuju heatsink disebut ....', options: ['Thermal Paste', 'Silicon Glue', 'Cooling Gel', 'Heat Protector'], correctAnswer: 'Thermal Paste' },
+
+  { id: 'q24', text: 'Orang yang bertugas merancang, membuat, dan mengembangkan perangkat lunak disebut ....', options: ['User', 'Teknisi', 'Programmer', 'Network Engineer'], correctAnswer: 'Programmer' },
+
+  { id: 'q25', text: 'Manakah yang termasuk perangkat output yang menghasilkan keluaran berupa suara?', options: ['Mikrofon', 'Scanner', 'Speaker', 'Webcam'], correctAnswer: 'Speaker' }
+
 ];

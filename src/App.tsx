@@ -17,7 +17,7 @@ export default function App() {
   
   // Student State
   const [studentName, setStudentName] = useState('');
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState('Dasar-Dasar TJKT');
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -167,10 +167,8 @@ export default function App() {
   };
 
   const handleDeleteSubmission = async (id: string) => {
-    if (confirm("Hapus data ujian ini?")) {
-      await deleteDoc(doc(db, 'submissions', id));
-      loadSubmissions();
-    }
+    await deleteDoc(doc(db, 'submissions', id));
+    loadSubmissions();
   };
 
   const viewTeacherDashboard = () => {
@@ -184,18 +182,18 @@ export default function App() {
   };
 
   const handleSeedQuestions = async () => {
-    if (!confirm("Masukkan 30 soal default ke dalam Bank Soal?")) return;
     setIsLoading(true);
     try {
-      for (const q of questionBank) {
+      const promises = questionBank.map(q => {
         const ref = doc(collection(db, 'questions'));
-        await setDoc(ref, {
+        return setDoc(ref, {
           text: q.text,
           options: q.options,
           correctAnswer: q.correctAnswer,
           createdAt: Date.now()
         });
-      }
+      });
+      await Promise.all(promises);
       loadQuestions();
     } catch (err) {
       console.error(err);
@@ -244,9 +242,21 @@ export default function App() {
   };
 
   const handleDeleteQuestion = async (id: string) => {
-    if (confirm("Hapus soal ini dari Bank Soal?")) {
-      await deleteDoc(doc(db, 'questions', id));
+    await deleteDoc(doc(db, 'questions', id));
+    loadQuestions();
+  };
+
+  const handleDeleteAllQuestions = async () => {
+    setIsLoading(true);
+    try {
+      const qSnapshot = await getDocs(collection(db, 'questions'));
+      const deletePromises = qSnapshot.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
       loadQuestions();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -284,14 +294,14 @@ export default function App() {
               </div>
               <div className="text-left">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Mata Pelajaran</label>
-                <input
-                  type="text"
+                <select
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Contoh: Matematika"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
                   required
-                />
+                >
+                  <option value="Dasar-Dasar TJKT">Dasar-Dasar TJKT</option>
+                </select>
               </div>
               <button
                 type="submit"
@@ -591,7 +601,16 @@ export default function App() {
                           disabled={isLoading}
                           className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl"
                         >
-                          Isi 30 Soal Bawaan
+                          Isi 25 Soal TJKT
+                        </button>
+                      )}
+                      {dbQuestions.length > 0 && (
+                        <button
+                          onClick={handleDeleteAllQuestions}
+                          disabled={isLoading}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+                        >
+                          <Trash2 size={16} /> Hapus Semua
                         </button>
                       )}
                       <button
