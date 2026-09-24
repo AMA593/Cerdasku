@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, setDoc } from 'firebase/firestore';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { questionBank } from './data/questions';
+import { questionBank, tjktQuestionBank, codingAiQuestionBank } from './data/questions';
 import { shuffleArray } from './utils/shuffle';
 import { Question, Submission } from './types';
-import { BookOpen, LogOut, CheckCircle2, ChevronLeft, ChevronRight, Lock, Plus, Trash2, Edit2, Loader2, Save, X } from 'lucide-react';
+import { BookOpen, LogOut, CheckCircle2, ChevronLeft, ChevronRight, Lock, Plus, Trash2, Edit2, Loader2, Save, X, Filter, Sparkles, Cpu } from 'lucide-react';
 
 type AppView = 'student_setup' | 'student_quiz' | 'student_done' | 'teacher_dashboard';
 
 const ALLOWED_TEACHER_EMAILS = ['ahmadmaiyah35@gmail.com'];
+const AVAILABLE_SUBJECTS = ['Dasar-Dasar TJKT', 'Koding dan AI'] as const;
 
 export default function App() {
   const [view, setView] = useState<AppView>('student_setup');
@@ -28,10 +29,15 @@ export default function App() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [teacherTab, setTeacherTab] = useState<'submissions' | 'questions'>('submissions');
   const [dbQuestions, setDbQuestions] = useState<Question[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   
+  // Filtering states for teacher dashboard
+  const [filterSubject, setFilterSubject] = useState<string>('Semua');
+  const [submissionFilterSubject, setSubmissionFilterSubject] = useState<string>('Semua');
+
   const [isEditingQuestion, setIsEditingQuestion] = useState(false);
   const [editQuestionForm, setEditQuestionForm] = useState<Question>({
-    id: '', text: '', options: ['', '', '', ''], correctAnswer: ''
+    id: '', text: '', options: ['', '', '', ''], correctAnswer: '', subject: 'Dasar-Dasar TJKT'
   });
 
   // Auth listener
@@ -39,6 +45,8 @@ export default function App() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user && user.email && ALLOWED_TEACHER_EMAILS.includes(user.email)) {
         setIsTeacher(true);
+        loadQuestions();
+        loadSubmissions();
       } else {
         setIsTeacher(false);
       }
@@ -54,15 +62,30 @@ export default function App() {
     try {
       const q = query(collection(db, 'questions'));
       const snap = await getDocs(q);
-      let allQuestions = snap.docs.map(d => ({ id: d.id, ...d.data() } as Question));
+      const allDbQuestions = snap.docs.map(d => ({ id: d.id, ...d.data() } as Question));
 
-      if (allQuestions.length === 0) {
-        // Fallback to local questions if db is empty
-        allQuestions = questionBank;
+      // Filter questions by selected subject
+      let matched = allDbQuestions.filter(q => 
+        q.subject ? q.subject.trim().toLowerCase() === subject.trim().toLowerCase() : subject === 'Dasar-Dasar TJKT'
+      );
+
+      // Khusus mata pelajaran Koding dan AI: pastikan memakai 15 soal resmi (HTML, CSS, JS, UI, dll)
+      if (subject === 'Koding dan AI') {
+        const hasOfficialQuestions = matched.some(q => q.text.toLowerCase().includes('html'));
+        if (matched.length === 0 || !hasOfficialQuestions) {
+          matched = codingAiQuestionBank;
+        }
+      } else {
+        // If DB doesn't have questions for this subject yet, fallback to preset questionBank
+        if (matched.length === 0) {
+          matched = questionBank.filter(q => 
+            q.subject ? q.subject.trim().toLowerCase() === subject.trim().toLowerCase() : subject === 'Dasar-Dasar TJKT'
+          );
+        }
       }
 
       // Pick up to 25 random questions and shuffle options
-      const selected = shuffleArray(allQuestions).slice(0, 25).map(q => ({
+      const selected = shuffleArray(matched).slice(0, 25).map(q => ({
         ...q,
         options: shuffleArray(q.options)
       }));
@@ -169,6 +192,36 @@ export default function App() {
       const snap = await getDocs(q);
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as Question));
       setDbQuestions(data);
+
+      // Auto-sinkronisasi 15 butir soal Koding & AI jika guru aktif dan soal belum tersinkron di Firestore
+      const codingQuestions = data.filter(item => (item.subject || '').trim().toLowerCase() === 'koding dan ai');
+      const hasOfficialQuestions = codingQuestions.some(item => item.text.toLowerCase().includes('html'));
+      if (
+        auth.currentUser && 
+        ALLOWED_TEACHER_EMAILS.includes(auth.currentUser.email || '') && 
+        (!hasOfficialQuestions || codingQuestions.length !== 15)
+      ) {
+        try {
+          if (codingQuestions.length > 0) {
+            await Promise.all(codingQuestions.map(item => deleteDoc(doc(db, 'questions', item.id))));
+          }
+          const promises = codingAiQuestionBank.map(item => {
+            const ref = doc(collection(db, 'questions'));
+            return setDoc(ref, {
+              text: item.text,
+              options: item.options,
+              correctAnswer: item.correctAnswer,
+              subject: 'Koding dan AI',
+              createdAt: Date.now()
+            });
+          });
+          await Promise.all(promises);
+          const refreshSnap = await getDocs(q);
+          setDbQuestions(refreshSnap.docs.map(d => ({ id: d.id, ...d.data() } as Question)));
+        } catch (e) {
+          console.warn("Auto-sync soal Koding dan AI ke Firestore:", e);
+        }
+      }
     } catch (error) {
       console.error("Gagal memuat bank soal", error);
     }
@@ -189,23 +242,33 @@ export default function App() {
     }
   };
 
-  const handleSeedQuestions = async () => {
+  const handleSeedQuestions = async (targetSubject: 'Dasar-Dasar TJKT' | 'Koding dan AI') => {
     setIsLoading(true);
     try {
-      const promises = questionBank.map(q => {
+      // Hapus soal sebelumnya untuk mata pelajaran ini agar rapi dan tidak duplikat
+      const existingForSubject = dbQuestions.filter(q => 
+        (q.subject || 'Dasar-Dasar TJKT').trim().toLowerCase() === targetSubject.trim().toLowerCase()
+      );
+      if (existingForSubject.length > 0) {
+        await Promise.all(existingForSubject.map(q => deleteDoc(doc(db, 'questions', q.id))));
+      }
+
+      const source = targetSubject === 'Dasar-Dasar TJKT' ? tjktQuestionBank : codingAiQuestionBank;
+      const promises = source.map(q => {
         const ref = doc(collection(db, 'questions'));
         return setDoc(ref, {
           text: q.text,
           options: q.options,
           correctAnswer: q.correctAnswer,
+          subject: targetSubject,
           createdAt: Date.now()
         });
       });
       await Promise.all(promises);
-      loadQuestions();
+      await loadQuestions();
     } catch (err) {
       console.error(err);
-      alert("Gagal memasukkan soal");
+      alert("Gagal memasukkan soal: " + (err as Error).message);
     } finally {
       setIsLoading(false);
     }
@@ -229,12 +292,18 @@ export default function App() {
         text: editQuestionForm.text,
         options: editQuestionForm.options,
         correctAnswer: editQuestionForm.correctAnswer,
+        subject: editQuestionForm.subject || 'Dasar-Dasar TJKT',
         createdAt: editQuestionForm.id ? undefined : Date.now()
       };
 
       if (editQuestionForm.id) {
         // Remove undefined fields
-        const updateData = { text: qData.text, options: qData.options, correctAnswer: qData.correctAnswer };
+        const updateData = { 
+          text: qData.text, 
+          options: qData.options, 
+          correctAnswer: qData.correctAnswer,
+          subject: qData.subject
+        };
         await setDoc(doc(db, 'questions', editQuestionForm.id), updateData, { merge: true });
       } else {
         await addDoc(collection(db, 'questions'), qData);
@@ -309,6 +378,7 @@ export default function App() {
                   required
                 >
                   <option value="Dasar-Dasar TJKT">Dasar-Dasar TJKT</option>
+                  <option value="Koding dan AI">Koding dan AI</option>
                 </select>
               </div>
               <button
@@ -485,6 +555,32 @@ export default function App() {
 
           {teacherTab === 'submissions' && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/70">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <Filter size={14} /> Filter Mapel:
+                  </span>
+                  {['Semua', ...AVAILABLE_SUBJECTS].map(s => {
+                    const count = s === 'Semua' 
+                      ? submissions.length 
+                      : submissions.filter(sub => sub.subject === s).length;
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => setSubmissionFilterSubject(s)}
+                        className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+                          submissionFilterSubject === s
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {s} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
@@ -497,39 +593,57 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {submissions.length === 0 ? (
+                    {submissions.filter(sub => submissionFilterSubject === 'Semua' ? true : sub.subject === submissionFilterSubject).length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">Belum ada data ujian yang masuk.</td>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                          {submissions.length === 0 ? 'Belum ada data ujian yang masuk.' : 'Tidak ada data untuk mata pelajaran yang dipilih.'}
+                        </td>
                       </tr>
                     ) : (
-                      submissions.map(sub => {
-                        const finalScore = Math.round((sub.score / sub.totalQuestions) * 100);
-                        return (
-                          <tr key={sub.id} className="hover:bg-slate-50">
-                            <td className="px-6 py-4 font-medium text-slate-900">{sub.studentName}</td>
-                            <td className="px-6 py-4 text-slate-600">{sub.subject}</td>
-                            <td className="px-6 py-4 text-slate-500">
-                              {new Date(sub.createdAt).toLocaleString('id-ID')}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full font-medium text-xs
-                                ${finalScore >= 80 ? 'bg-emerald-100 text-emerald-700' : 
-                                  finalScore >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
-                              >
-                                {finalScore} ({sub.score}/{sub.totalQuestions})
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <button 
-                                onClick={() => handleDeleteSubmission(sub.id!)}
-                                className="text-red-500 hover:text-red-700 font-medium text-xs"
-                              >
-                                Hapus
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
+                      submissions
+                        .filter(sub => submissionFilterSubject === 'Semua' ? true : sub.subject === submissionFilterSubject)
+                        .map(sub => {
+                          const finalScore = Math.round((sub.score / sub.totalQuestions) * 100);
+                          return (
+                            <tr key={sub.id} className="hover:bg-slate-50">
+                              <td className="px-6 py-4 font-medium text-slate-900">{sub.studentName}</td>
+                              <td className="px-6 py-4">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                  sub.subject === 'Koding dan AI' 
+                                    ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                                    : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                }`}>
+                                  {sub.subject}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-slate-500">
+                                {new Date(sub.createdAt).toLocaleString('id-ID')}
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full font-medium text-xs
+                                  ${finalScore >= 80 ? 'bg-emerald-100 text-emerald-700' : 
+                                    finalScore >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
+                                >
+                                  {finalScore} ({sub.score}/{sub.totalQuestions})
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 flex items-center gap-3">
+                                <button 
+                                  onClick={() => setSelectedSubmission(sub)}
+                                  className="text-blue-500 hover:text-blue-700 font-medium text-xs"
+                                >
+                                  Detail
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteSubmission(sub.id!)}
+                                  className="text-red-500 hover:text-red-700 font-medium text-xs"
+                                >
+                                  Hapus
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
                     )}
                   </tbody>
                 </table>
@@ -546,6 +660,21 @@ export default function App() {
                     <button onClick={() => setIsEditingQuestion(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
                   </div>
                   <form onSubmit={handleSaveQuestion} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Mata Pelajaran</label>
+                        <select
+                          value={editQuestionForm.subject || 'Dasar-Dasar TJKT'}
+                          onChange={(e) => setEditQuestionForm(prev => ({ ...prev, subject: e.target.value }))}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                          required
+                        >
+                          {AVAILABLE_SUBJECTS.map(subj => (
+                            <option key={subj} value={subj}>{subj}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Pertanyaan</label>
                       <textarea
@@ -605,81 +734,155 @@ export default function App() {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
                     <div>
                       <h2 className="text-lg font-bold text-slate-900">Daftar Soal Pilihan Ganda</h2>
-                      <p className="text-sm text-slate-500">Total: {dbQuestions.length} soal (Sistem akan mengacak dan mengambil 25 soal untuk siswa)</p>
+                      <p className="text-sm text-slate-500">
+                        Total di database: {dbQuestions.length} soal (Sistem mengacak 25 soal per ujian)
+                      </p>
                     </div>
-                    <div className="flex gap-2">
-                      {dbQuestions.length === 0 && (
-                        <button
-                          onClick={handleSeedQuestions}
-                          disabled={isLoading}
-                          className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl"
-                        >
-                          Isi 25 Soal TJKT
-                        </button>
-                      )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => handleSeedQuestions('Dasar-Dasar TJKT')}
+                        disabled={isLoading}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                        title="Tambahkan 25 soal standar Dasar-Dasar TJKT ke Bank Soal"
+                      >
+                        <Cpu size={14} />
+                        Isi 25 Soal TJKT
+                      </button>
+                      <button
+                        onClick={() => handleSeedQuestions('Koding dan AI')}
+                        disabled={isLoading}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
+                        title="Tambahkan 15 soal standar Koding dan AI ke Bank Soal"
+                      >
+                        <Sparkles size={14} />
+                        Isi 15 Soal Koding & AI
+                      </button>
                       {dbQuestions.length > 0 && (
                         <button
                           onClick={handleDeleteAllQuestions}
                           disabled={isLoading}
-                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
                         >
-                          <Trash2 size={16} /> Hapus Semua
+                          <Trash2 size={14} /> Hapus Semua
                         </button>
                       )}
                       <button
                         onClick={() => {
-                          setEditQuestionForm({ id: '', text: '', options: ['', '', '', ''], correctAnswer: '' });
+                          setEditQuestionForm({ 
+                            id: '', 
+                            text: '', 
+                            options: ['', '', '', ''], 
+                            correctAnswer: '', 
+                            subject: filterSubject !== 'Semua' ? filterSubject : 'Dasar-Dasar TJKT' 
+                          });
                           setIsEditingQuestion(true);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl"
+                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
                       >
-                        <Plus size={16} /> Tambah Soal
+                        <Plus size={14} /> Tambah Soal
                       </button>
                     </div>
                   </div>
 
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-2 mb-6 p-3 bg-slate-50 rounded-xl border border-slate-100 flex-wrap">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Filter size={14} /> Filter Soal:
+                    </span>
+                    {['Semua', ...AVAILABLE_SUBJECTS].map(s => {
+                      const count = s === 'Semua' 
+                        ? dbQuestions.length 
+                        : dbQuestions.filter(q => (q.subject ? q.subject === s : s === 'Dasar-Dasar TJKT')).length;
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => setFilterSubject(s)}
+                          className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+                            filterSubject === s
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {s} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <div className="space-y-4">
-                    {dbQuestions.length === 0 ? (
+                    {dbQuestions.filter(q => {
+                      if (filterSubject === 'Semua') return true;
+                      return q.subject ? q.subject === filterSubject : filterSubject === 'Dasar-Dasar TJKT';
+                    }).length === 0 ? (
                       <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
-                        <p className="text-slate-500">Bank soal masih kosong.</p>
+                        <p className="text-slate-500 mb-2">
+                          {dbQuestions.length === 0 
+                            ? 'Bank soal masih kosong.' 
+                            : `Belum ada soal untuk mata pelajaran "${filterSubject}".`}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Gunakan tombol "Isi 25 Soal TJKT" atau "Isi 25 Soal Koding & AI" di atas untuk menambahkan bank soal secara otomatis.
+                        </p>
                       </div>
                     ) : (
-                      dbQuestions.map((q, index) => (
-                        <div key={q.id} className="p-4 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
-                          <div className="flex justify-between items-start gap-4">
-                            <div>
-                              <p className="font-medium text-slate-900 mb-2">{index + 1}. {q.text}</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                {q.options.map((opt, idx) => (
-                                  <div key={idx} className={`text-sm px-3 py-1.5 rounded-lg border ${opt === q.correctAnswer ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-medium' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
-                                    {String.fromCharCode(65 + idx)}. {opt}
-                                  </div>
-                                ))}
+                      dbQuestions
+                        .filter(q => {
+                          if (filterSubject === 'Semua') return true;
+                          return q.subject ? q.subject === filterSubject : filterSubject === 'Dasar-Dasar TJKT';
+                        })
+                        .map((q, index) => (
+                          <div key={q.id} className="p-4 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="flex-1">
+                                <div className="mb-2">
+                                  <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                                    q.subject === 'Koding dan AI'
+                                      ? 'bg-purple-100 text-purple-700 border-purple-200'
+                                      : 'bg-blue-100 text-blue-700 border-blue-200'
+                                  }`}>
+                                    {q.subject || 'Dasar-Dasar TJKT'}
+                                  </span>
+                                </div>
+                                <p className="font-medium text-slate-900 mb-2">{index + 1}. {q.text}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                  {q.options.map((opt, idx) => (
+                                    <div key={idx} className={`text-sm px-3 py-1.5 rounded-lg border ${opt === q.correctAnswer ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-medium' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                                      {String.fromCharCode(65 + idx)}. {opt}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex gap-2 shrink-0">
+                                <button 
+                                  onClick={() => {
+                                    setEditQuestionForm({
+                                      id: q.id,
+                                      text: q.text,
+                                      options: q.options,
+                                      correctAnswer: q.correctAnswer,
+                                      subject: q.subject || 'Dasar-Dasar TJKT'
+                                    });
+                                    setIsEditingQuestion(true);
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Ubah soal"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteQuestion(q.id)}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Hapus soal"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
                               </div>
                             </div>
-                            <div className="flex gap-2 shrink-0">
-                              <button 
-                                onClick={() => {
-                                  setEditQuestionForm(q);
-                                  setIsEditingQuestion(true);
-                                }}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteQuestion(q.id)}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
                           </div>
-                        </div>
-                      ))
+                        ))
                     )}
                   </div>
                 </div>
@@ -689,6 +892,62 @@ export default function App() {
         </div>
       )}
       
+      {selectedSubmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Detail Jawaban: {selectedSubmission.studentName}</h3>
+                <p className="text-sm text-slate-500">
+                  Nilai: {Math.round((selectedSubmission.score / selectedSubmission.totalQuestions) * 100)} ({selectedSubmission.score}/{selectedSubmission.totalQuestions})
+                </p>
+              </div>
+              <button onClick={() => setSelectedSubmission(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-6">
+              {[...dbQuestions, ...questionBank.filter(qb => !dbQuestions.some(dq => dq.id === qb.id))]
+                .filter(q => selectedSubmission.answers.hasOwnProperty(q.id))
+                .map((q, idx) => {
+                const studentAnswer = selectedSubmission.answers[q.id];
+                const isCorrect = studentAnswer === q.correctAnswer;
+                
+                return (
+                  <div key={q.id} className="p-4 rounded-xl border border-slate-200">
+                    <p className="font-medium text-slate-900 mb-3">{idx + 1}. {q.text}</p>
+                    <div className="space-y-2">
+                      {q.options.map((opt, i) => {
+                        const isStudentChoice = studentAnswer === opt;
+                        const isActuallyCorrect = q.correctAnswer === opt;
+                        
+                        let bgClass = "bg-slate-50 border-slate-100 text-slate-600";
+                        if (isActuallyCorrect) bgClass = "bg-emerald-50 border-emerald-200 text-emerald-800 font-medium";
+                        else if (isStudentChoice && !isCorrect) bgClass = "bg-red-50 border-red-200 text-red-800";
+                        
+                        return (
+                          <div key={i} className={`flex items-center justify-between text-sm px-4 py-2 rounded-lg border ${bgClass}`}>
+                            <span>{String.fromCharCode(65 + i)}. {opt}</span>
+                            {isStudentChoice && <span className="text-xs font-bold uppercase tracking-wider">{isCorrect ? 'Jawaban Siswa' : 'Jawaban Siswa (Salah)'}</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end shrink-0">
+              <button
+                onClick={() => setSelectedSubmission(null)}
+                className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

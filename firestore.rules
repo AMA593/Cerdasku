@@ -34,7 +34,8 @@ service cloud.firestore {
                data.text is string &&
                data.options is list &&
                data.correctAnswer is string &&
-               data.createdAt is number;
+               data.createdAt is number &&
+               (!('subject' in data) || data.subject is string);
       }
       
       // Siswa bisa membaca soal (tanpa login)
